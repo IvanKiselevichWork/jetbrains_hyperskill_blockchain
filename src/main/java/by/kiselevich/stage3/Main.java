@@ -78,28 +78,32 @@ class Block {
 }
 
 class Blockchain {
-    private final List<Block> blockchain = new ArrayList<>();
+    private static final int MIN_ZERO_COUNT = 0;
+    private static final int MAX_ZERO_COUNT = 30;
+    private static final int MIN_GENERATING_TIME_IN_SECONDS = 5;
+    private static final int MAX_GENERATING_TIME_IN_SECONDS = 10;
+    private final List<Block> blocks = new ArrayList<>();
     private int nextBlockZeroCount = 0;
 
     public Block getFirstBlock() {
-        return blockchain.get(0);
+        return blocks.get(0);
     }
 
     public List<Block> getBlockchain() {
-        return new ArrayList<>(blockchain);
+        return new ArrayList<>(blocks);
     }
 
     public Block generateBlock(int zeroCount) {
         long startTime = System.currentTimeMillis();
         String prevHash = "0";
-        if (!blockchain.isEmpty()) {
-            prevHash = StringUtil.applySha256(blockchain.get(blockchain.size() - 1));
+        if (!blocks.isEmpty()) {
+            prevHash = StringUtil.applySha256(blocks.get(blocks.size() - 1));
         }
         String zerosStandard = new String(new char[zeroCount]).replaceAll("\0", "0");
 
         String zerosPart;
         int magicNumber;
-        Block block = new Block((long) blockchain.size(), new Date().getTime(), prevHash);
+        Block block = new Block((long) blocks.size(), new Date().getTime(), prevHash);
         do {
             magicNumber = ThreadLocalRandom.current().nextInt();
             block.setMagicNumber(magicNumber);
@@ -113,27 +117,27 @@ class Blockchain {
 
     public int addBlock(Block block) {
         //todo check if block valid
-        blockchain.add(block);
-        if (block.getGeneratingTimeInSeconds() < 5) {
+        blocks.add(block);
+        if (block.getGeneratingTimeInSeconds() < MIN_GENERATING_TIME_IN_SECONDS && nextBlockZeroCount < MAX_ZERO_COUNT) {
             nextBlockZeroCount++;
-        } else if (block.getGeneratingTimeInSeconds() > 10 && nextBlockZeroCount > 0) {
+        } else if (block.getGeneratingTimeInSeconds() > MAX_GENERATING_TIME_IN_SECONDS && nextBlockZeroCount > MIN_ZERO_COUNT) {
             nextBlockZeroCount--;
         }
         return nextBlockZeroCount;
     }
 
     public boolean isBlockchainValid() {
-        if (blockchain.isEmpty()) {
+        if (blocks.isEmpty()) {
             return true;
         }
-        if (!blockchain.get(0).getPreviousBlockHash().equals("0")) {
+        if (!blocks.get(0).getPreviousBlockHash().equals("0")) {
             return false;
         }
-        if (blockchain.size() == 1) {
+        if (blocks.size() == 1) {
             return true;
         }
-        for (int i = 0; i < blockchain.size() - 1; i++) {
-            if (!StringUtil.applySha256(blockchain.get(i)).equals(blockchain.get(i + 1).getPreviousBlockHash())) {
+        for (int i = 0; i < blocks.size() - 1; i++) {
+            if (!StringUtil.applySha256(blocks.get(i)).equals(blocks.get(i + 1).getPreviousBlockHash())) {
                 return false;
             }
         }
@@ -143,7 +147,7 @@ class Blockchain {
     @Override
     public String toString() {
         return "Blockchain{" +
-                "blockchain=" + blockchain +
+                "blockchain=" + blocks +
                 '}';
     }
 }
@@ -201,6 +205,6 @@ public class Main {
             System.out.println();
         }
 
-        //System.out.println("Is blockchain valid: " + blockchain.isBlockchainValid());
+        System.out.println("Is blockchain valid: " + blockchain.isBlockchainValid());
     }
 }
