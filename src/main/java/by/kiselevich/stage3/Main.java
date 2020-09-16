@@ -5,7 +5,7 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.*;
 
 class Block {
     private final Long id;
@@ -126,6 +126,10 @@ class Blockchain {
         return nextBlockZeroCount;
     }
 
+    public int getNextBlockZeroCount() {
+        return nextBlockZeroCount;
+    }
+
     public boolean isBlockchainValid() {
         if (blocks.isEmpty()) {
             return true;
@@ -185,26 +189,44 @@ class StringUtil {
 
 public class Main {
     public static void main(String[] args) {
+        try {
+            Blockchain blockchain = new Blockchain();
+            int zeroCount = 0;
+            int previousZeroCount = 0;
+            Block block;
 
-        Blockchain blockchain = new Blockchain();
-        int zeroCount = 0;
-        int previousZeroCount = 0;
-        Block block;
-        for (int i = 0; i < 5; i++) {
-            block = blockchain.generateBlock(zeroCount);
-            previousZeroCount = zeroCount;
-            zeroCount = blockchain.addBlock(block);
-            System.out.println(block);
-            if (previousZeroCount == zeroCount) {
-                System.out.println("N stays the same");
-            } else if (zeroCount > previousZeroCount) {
-                System.out.println("N was increased to " + zeroCount);
-            } else {
-                System.out.println("N was decreased by " + (previousZeroCount - zeroCount));
+            // concurrent stuff
+            int threadNumber = 4;
+            ExecutorService executorService;
+            CompletionService<Block> completionService;
+            Future<Block> future;
+
+            for (int i = 0; i < 10; i++) {
+                executorService = Executors.newFixedThreadPool(threadNumber);
+                completionService = new ExecutorCompletionService<>(executorService);
+                for (int j = 0; j < threadNumber; j++) {
+                    completionService.submit(() -> blockchain.generateBlock(blockchain.getNextBlockZeroCount()));
+                }
+                future = completionService.take();
+                executorService.shutdownNow();
+                block = future.get();
+
+                previousZeroCount = zeroCount;
+                zeroCount = blockchain.addBlock(block);
+                System.out.println(block);
+                if (previousZeroCount == zeroCount) {
+                    System.out.println("N stays the same");
+                } else if (zeroCount > previousZeroCount) {
+                    System.out.println("N was increased to " + zeroCount);
+                } else {
+                    System.out.println("N was decreased by " + (previousZeroCount - zeroCount));
+                }
+                System.out.println();
             }
-            System.out.println();
-        }
 
-        System.out.println("Is blockchain valid: " + blockchain.isBlockchainValid());
+            System.out.println("Is blockchain valid: " + blockchain.isBlockchainValid());
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
     }
 }
